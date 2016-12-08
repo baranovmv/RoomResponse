@@ -5,42 +5,46 @@ import math
 
 class RoomResponseEstimator(object):
     """
-    Gives video impulse, gets response and calculate impulse response.
+    Gives probe impulse, gets response and calculate impulse response.
     Method from paper: "Simultaneous measurement of impulse response and distortion with a swept-sine technique"
     Angelo Farina
     """
 
-    def __init__(self, Fs=44100):
+    def __init__(self, duration=10.0, low=100.0, high=15000.0, Fs=44100.0):
         self.Fs = Fs
 
         # Total length in samples
-        self.T = Fs*1
-        self.w1 = 1.0 / self.Fs * 2*np.pi
-        self.w2 = 20000.0 / self.Fs * 2*np.pi
+        self.T = Fs*duration
+        self.w1 = low / self.Fs * 2*np.pi
+        self.w2 = high / self.Fs * 2*np.pi
 
-        self.test_pulse = self.video()
+        self.probe_pulse = self.probe()
 
+        # Apply exponential signal on the beginning and the end of the probe signal.
         exp_window = 1-np.exp(np.linspace(0,-10, 5000))
-        self.test_pulse[:exp_window.shape[0]] *= exp_window
-        exp_window = 1-np.exp(np.linspace(0,-10, 1500))
-        self.test_pulse[-exp_window.shape[0]:] *= exp_window[-1::-1]
-        # self.test_pulse *= 1.0/np.sqrt(sum(np.square(self.test_pulse)))
+        self.probe_pulse[:exp_window.shape[0]] *= exp_window
+        self.probe_pulse[-exp_window.shape[0]:] *= exp_window[-1::-1]
 
+        # This is what the value of K will be at the end (in dB):
         kend = 10**((-6*np.log2(self.w2/self.w1))/20)
+        # dB to rational number.
         k = np.log(kend)/self.T
 
-        self.reverse_pulse = self.test_pulse[-1::-1] * \
+        # Making reverse probe impulse so that convolution will just
+        # calculate dot product. Weighting it with exponent to acheive 
+        # 6 dB per octave amplitude decrease.
+        self.reverse_pulse = self.probe_pulse[-1::-1] * \
             np.array(list(\
                 map(lambda t: np.exp(t*k), np.arange(self.T))\
                 )\
             )
 
-        Frp =  fft(fftconvolve(self.reverse_pulse, self.test_pulse))
+        # Now we have to normilze energy of result of dot product.
+        # This is "naive" method but it just works.
+        Frp =  fft(fftconvolve(self.reverse_pulse, self.probe_pulse))
         self.reverse_pulse /= np.abs(Frp[round(Frp.shape[0]/4)])
 
-        # self.test_pulse = np.append(self.video(), np.zeros(4096))
-
-    def video(self):
+    def probe(self):
 
         w1 = self.w1
         w2 = self.w2
@@ -62,9 +66,7 @@ class RoomResponseEstimator(object):
 
     def estimate(self, response):
 
-        # inverse = self.test_pulse[-1:0:-1]
         I = fftconvolve( response, self.reverse_pulse, mode='full')
-
-        I = I[self.test_pulse.shape[0]:self.test_pulse.shape[0]*2+1]
+        I = I[self.probe_pulse.shape[0]:self.probe_pulse.shape[0]*2+1]
 
         return I
