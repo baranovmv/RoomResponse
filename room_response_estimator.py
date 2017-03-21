@@ -1,5 +1,6 @@
 from scipy.fftpack import fft, ifft
 from scipy.signal import fftconvolve, convolve
+from scipy.linalg import toeplitz, lstsq
 import numpy as np
 import math
 
@@ -69,4 +70,34 @@ class RoomResponseEstimator(object):
         I = fftconvolve( response, self.reverse_pulse, mode='full')
         I = I[self.probe_pulse.shape[0]:self.probe_pulse.shape[0]*2+1]
 
+        peek_x = np.argmax( I, axis=0 )
+        I = I[peek_x:]
+
         return I
+
+    def inverted_ir(self, IR, invir_len=None):
+        '''
+        Calculates reverse impulse response so that we can use it as
+        a predistortion filter.
+        IR -- the estimated impulse response, which is received from estimate method.
+        invir_len -- the length of the target reversed ir.
+        '''
+        ir_len =  IR.shape[0]
+
+        if invir_len is None:
+            invir_len = ir_len
+
+        # The result of convolution IR and inverted IR must be delta-impulse.
+        # Here it is:
+        Y = np.zeros(invir_len + ir_len-1)
+        Y[ir_len - 1] = 1
+
+        ir_zpadded = np.append(IR, np.zeros(invir_len-ir_len))
+
+        H = toeplitz(ir_zpadded, np.zeros(invir_len))
+        H_tail = toeplitz(np.zeros(Y.shape[0]), ir_zpadded[-1::-1])[:ir_len-1]
+        H = np.append(H, H_tail, axis=0)
+
+        inverse = lstsq(H, Y)[0]
+        inverse /= np.max(fftconvolve(IR, inverse))
+        return inverse

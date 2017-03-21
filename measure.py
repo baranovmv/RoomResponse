@@ -90,7 +90,7 @@ if __name__ == "__main__":
     plt.plot(room_response)
     plt.legend(["Measured Room Response"])
     x0 = np.argmax(room_response)
-    plt.xlim([x0-100, x0+1024])
+    plt.xlim([x0, x0+1024])
     plt.grid()
 
     plt.subplot(322)
