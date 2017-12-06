@@ -36,7 +36,7 @@ class RoomResponseEstimator(object):
         # 6 dB per octave amplitude decrease.
         self.reverse_pulse = self.probe_pulse[-1::-1] * \
             np.array(list(\
-                map(lambda t: np.exp(t*k), np.arange(self.T))\
+                map(lambda t: np.exp(float(t)*k), range(int(self.T)))\
                 )\
             )
 
