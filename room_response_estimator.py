@@ -1,6 +1,7 @@
 from scipy.fftpack import fft, ifft
-from scipy.signal import fftconvolve, convolve
+from scipy.signal import fftconvolve, convolve, kaiser
 from scipy.linalg import toeplitz, lstsq
+import copy
 import numpy as np
 import math
 
@@ -23,8 +24,14 @@ class RoomResponseEstimator(object):
 
         # Apply exponential signal on the beginning and the end of the probe signal.
         exp_window = 1-np.exp(np.linspace(0,-10, 5000))
-        self.probe_pulse[:exp_window.shape[0]] *= exp_window
-        self.probe_pulse[-exp_window.shape[0]:] *= exp_window[-1::-1]
+        window_len = 2500
+        win = kaiser(window_len, 16)
+        win_start = win[:int(win.shape[0]/2)]
+        self.probe_pulse[:win_start.shape[0]] *= win_start
+        window_len = 2500
+        win = kaiser(window_len, 14)
+        win_end = win[int(win.shape[0]/2):]
+        self.probe_pulse[-win_end.shape[0]:] *= win_end
 
         # This is what the value of K will be at the end (in dB):
         kend = 10**((-6*np.log2(self.w2/self.w1))/20)
@@ -32,7 +39,7 @@ class RoomResponseEstimator(object):
         k = np.log(kend)/self.T
 
         # Making reverse probe impulse so that convolution will just
-        # calculate dot product. Weighting it with exponent to acheive 
+        # calculate dot product. Weighting it with exponent to acheive
         # 6 dB per octave amplitude decrease.
         self.reverse_pulse = self.probe_pulse[-1::-1] * \
             np.array(list(\
@@ -71,7 +78,7 @@ class RoomResponseEstimator(object):
         I = I[self.probe_pulse.shape[0]:self.probe_pulse.shape[0]*2+1]
 
         peek_x = np.argmax( I, axis=0 )
-        I = I[peek_x:]
+        # I = I[peek_x:]
 
         return I
 

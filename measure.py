@@ -8,6 +8,7 @@ import scipy.fftpack
 import math
 import subprocess
 import wavio
+import scipy.io.wavfile
 import sys
 import sounddevice as sd
 from optparse import OptionParser
@@ -21,24 +22,24 @@ def Spectrum(s):
     Ftest = scipy.fftpack.fft( s )
     n = round(s.shape[0]/2)
     xf = np.linspace(0.0, 44100/2.0, n)
-    return xf, 20*np.log10(np.abs(Ftest[0:n])) 
+    return xf, 20*np.log10(np.abs(Ftest[0:n]))
 
 #######################################################################################################################
 if __name__ == "__main__":
 
     parser = OptionParser()
-    parser.add_option( "-r", "--reuse", action="store", 
+    parser.add_option( "-r", "--reuse", action="store",
                         type="string", dest="reuse_wav",
                         help="Use wav file with previous record instead actual playing and recording.")
-    parser.add_option( "-d", "--duration", action="store", 
+    parser.add_option( "-d", "--duration", action="store",
                         type="float", dest="duration",
                         default=10,
                         help="Duration of probe impulse.")
-    parser.add_option( "-b", "--low-freq", action="store", 
+    parser.add_option( "-b", "--low-freq", action="store",
                         type="float", dest="lowfreq",
                         default=100,
                         help="The lowest detected frequency [Hz].")
-    parser.add_option( "-e", "--high-freq", action="store", 
+    parser.add_option( "-e", "--high-freq", action="store",
                         type="float", dest="highfreq",
                         default=15000,
                         help="The highest frequency in probe impulse [Hz].")
@@ -51,8 +52,8 @@ if __name__ == "__main__":
         ir_file = options.reuse_wav
     else:
         # Store probe signal in wav file.
-        x = np.append(np.zeros(44100), estimator.probe_pulse)
-        wavio.write("test_sweep.wav", x, 44100, sampwidth=2)
+        x = np.append( np.zeros(44100), estimator.probe_pulse * 0.1 )
+        scipy.io.wavfile.write("test_sweep.wav", 44100, x)
 
         # Play it and record microphones input simultaneously.
         reccommand = \
